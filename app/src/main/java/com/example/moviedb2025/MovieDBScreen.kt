@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowBack
 
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -32,39 +33,39 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import com.example.moviedb2025.R
-import com.example.moviedb2025.database.Movies
-import com.example.moviedb2025.models.Movie
 import com.example.moviedb2025.ui.screens.MovieDetailScreen
-import com.example.moviedb2025.ui.screens.MovieListItemCard
+
 import com.example.moviedb2025.ui.screens.MovieListScreen
-import com.example.moviedb2025.ui.theme.MovieDB2025Theme
+
 import com.example.moviedb2025.viewmodel.MovieDBViewModel
 
 
-enum class MovieDBScreen(@StringRes val title: Int){
+
+enum class MovieDBScreen(@StringRes val title: Int) {
     List(title = R.string.app_name),
     Detail(title = R.string.movie_detail)
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
+
+@kotlin.OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun MovieDBAppBar(
-    currScreen: MovieDBScreen,
-    canNavigateBack:Boolean,
+    currentScreen: MovieDBScreen,
+    canNavigateBack: Boolean,
     navigateUp: () -> Unit,
     modifier: Modifier = Modifier
-){
+) {
     TopAppBar(
-        title = {Text(stringResource(currScreen.title))},
+        title = { Text(stringResource(currentScreen.title)) },
         colors = TopAppBarDefaults.mediumTopAppBarColors(
             containerColor = MaterialTheme.colorScheme.primaryContainer
         ),
         modifier = modifier,
         navigationIcon = {
-            if (canNavigateBack){
+            if (canNavigateBack) {
                 IconButton(onClick = navigateUp) {
                     Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                        imageVector = Icons.Filled.ArrowBack,
                         contentDescription = stringResource(R.string.back_button)
                     )
                 }
@@ -72,65 +73,55 @@ fun MovieDBAppBar(
         }
     )
 }
-@Composable
-fun MovieDbApp(viewModel: MovieDBViewModel = viewModel(),
-               navController: NavHostController = rememberNavController()
-) {
-    val backStackEntity by navController.currentBackStackEntryAsState()
 
+
+@Composable
+fun MovieDBApp(
+    navController: NavHostController = rememberNavController()
+) {
+    // Get current back stack entry
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    // Get the name of the current screen
     val currentScreen = MovieDBScreen.valueOf(
-        backStackEntity?.destination?.route ?: MovieDBScreen.List.name
+        backStackEntry?.destination?.route ?: MovieDBScreen.List.name
     )
 
     Scaffold(
         topBar = {
-            MovieDBAppBar(currScreen = currentScreen,
+            MovieDBAppBar(
+                currentScreen = currentScreen,
                 canNavigateBack = navController.previousBackStackEntry != null,
                 navigateUp = { navController.navigateUp() }
             )
         }
     ) { innerPadding ->
-        val uiState by viewModel.uiState.collectAsState()
+        val movieDBViewModel: MovieDBViewModel = viewModel(factory = MovieDBViewModel.Factory)
+
         NavHost(
             navController = navController,
             startDestination = MovieDBScreen.List.name,
             modifier = Modifier
                 .fillMaxSize()
                 .padding(innerPadding)
-        ){
-            composable(route = MovieDBScreen.List.name){
+        ) {
+            composable(route = MovieDBScreen.List.name) {
                 MovieListScreen(
-                    movieList = Movies().getMovies(),
-                    onMovieListItemClicked = { movie ->
-                        viewModel.setSelectedMovie(movie)
+                    movieListUiState = movieDBViewModel.movieListUiState,
+                    onMovieListItemClicked = {
+                        movieDBViewModel.setSelectedMovie(it)
                         navController.navigate(MovieDBScreen.Detail.name)
-                    }, modifier = Modifier.fillMaxSize().padding(16.dp))
+                    },
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                )
             }
-            composable(route = MovieDBScreen.Detail.name){
-                uiState.selectedMovie?.let { movie ->
-                    MovieDetailScreen(movie = movie,
-                        modifier = Modifier)
-                }
+            composable(route = MovieDBScreen.Detail.name) {
+                MovieDetailScreen(
+                    selectedMovieUiState = movieDBViewModel.selectedMovieUiState,
+                    modifier = Modifier
+                )
             }
         }
-
-
-    }
-}
-
-@Preview(showBackground = true)
-@Composable
-fun GreetingPreview() {
-    MovieDB2025Theme {
-        MovieListItemCard(
-            movie = Movie(
-                2,
-                "Captain America: Brave New World",
-                "/pzIddUEMWhWzfvLI3TwxUG2wGoi.jpg",
-                "/gsQJOfeW45KLiQeEIsom94QPQwb.jpg",
-                "2025-02-12",
-                "When a group of radical activists take over an energy company's annual gala, seizing 300 hostages, an ex-soldier turned window cleaner suspended 50 storeys up on the outside of the building must save those trapped inside, including her younger brother."
-            ), {}
-        )
     }
 }
